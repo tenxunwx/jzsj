@@ -6,9 +6,9 @@ COPY package*.json ./
 RUN npm ci
 COPY . ./
 RUN npx playwright install --with-deps chromium
-RUN npm run build:binary:linux
+RUN npm run build
 
-FROM debian:bookworm-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,9 +43,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   fonts-liberation \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=backend-builder /workspace/backend/bin/matrix-api /app/matrix-api
+COPY --from=backend-builder /workspace/backend/node_modules /app/node_modules
+COPY --from=backend-builder /workspace/backend/dist /app/dist
+COPY --from=backend-builder /workspace/backend/package.json /app/package.json
 COPY --from=backend-builder /root/.cache/ms-playwright /ms-playwright
-RUN chmod +x /app/matrix-api && mkdir -p /app/data
+RUN mkdir -p /app/data
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV NODE_ENV=production
@@ -54,4 +56,4 @@ ENV PORT=3000
 EXPOSE 3000
 VOLUME ["/app/data"]
 
-CMD ["/app/matrix-api"]
+CMD ["node", "dist/index.js"]
